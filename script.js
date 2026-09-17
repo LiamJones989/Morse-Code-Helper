@@ -1,4 +1,3 @@
-```javascript
 /* =========================================
    MORSE CODE DATA
 ========================================= */
@@ -1150,5 +1149,4 @@ function escapeHtml(text) {
 updateCommunicator();
 
 newGameWord();
-```
 
