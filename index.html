@@ -1,1 +1,414 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <title>Morse Trainer</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="background-grid"></div>
+
+    <header class="site-header">
+
+        <div class="brand">
+            <div class="brand-icon">⌁</div>
+
+            <div>
+                <h1>MORSE<span>TRAINER</span></h1>
+                <p>Learn Morse. Build the skill. Master the signal.</p>
+            </div>
+        </div>
+
+        <div class="header-status">
+            <span class="status-dot"></span>
+            SYSTEM ONLINE
+        </div>
+
+    </header>
+
+
+    <main>
+
+        <!-- =========================
+             COMMUNICATOR
+        ========================== -->
+
+        <section class="panel communicator-panel">
+
+            <div class="panel-header">
+
+                <div>
+                    <span class="panel-number">01</span>
+
+                    <div>
+                        <h2>Morse Communicator</h2>
+                        <p>Transmit Morse using your keyboard.</p>
+                    </div>
+                </div>
+
+                <label class="switch">
+                    <input type="checkbox" id="morseEnabled">
+                    <span class="slider"></span>
+                </label>
+
+            </div>
+
+
+            <div class="terminal">
+
+                <div class="terminal-header">
+
+                    <div class="terminal-title">
+                        <span class="terminal-dot"></span>
+                        TRANSMISSION TERMINAL
+                    </div>
+
+                    <span id="morseStatus">
+                        STANDBY
+                    </span>
+
+                </div>
+
+
+                <div class="terminal-body">
+
+                    <div class="terminal-label">
+                        MORSE OUTPUT
+                    </div>
+
+                    <div id="morseOutput" class="morse-output">
+                        <span class="cursor">_</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="translation-box">
+
+                <div class="box-label">
+                    DECODED MESSAGE
+                </div>
+
+                <div id="decodedOutput" class="decoded-output">
+                    Waiting for transmission...
+                </div>
+
+            </div>
+
+
+            <div class="controls-row">
+
+                <button
+                    id="clearMorse"
+                    class="button secondary">
+                    CLEAR
+                </button>
+
+                <div class="key-instruction">
+
+                    <div class="key">
+                        SPACE
+                    </div>
+
+                    <div>
+                        <strong>Short press</strong>
+                        <span>DOT</span>
+                    </div>
+
+                    <div>
+                        <strong>Long press</strong>
+                        <span>DASH</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="transmission-help">
+
+                <div class="help-icon">i</div>
+
+                <div>
+                    <strong>How to transmit</strong>
+
+                    <p>
+                        Enable Morse input, then use
+                        <b>Spacebar</b>.
+                        A quick tap creates a dot
+                        <code>.</code>
+                        while holding the key creates a dash
+                        <code>-</code>.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =========================
+             GAME
+        ========================== -->
+
+        <section class="panel game-panel">
+
+            <div class="panel-header">
+
+                <div>
+                    <span class="panel-number">02</span>
+
+                    <div>
+                        <h2>Morse Challenge</h2>
+                        <p>Test your ability to read and transmit.</p>
+                    </div>
+                </div>
+
+                <div class="game-live">
+                    <span></span>
+                    LIVE
+                </div>
+
+            </div>
+
+
+            <div class="game-modes">
+
+                <button
+                    id="listenMode"
+                    class="mode-button active">
+
+                    <span class="mode-icon">◉</span>
+
+                    <div>
+                        <strong>LISTEN</strong>
+                        <small>Decode audio</small>
+                    </div>
+
+                </button>
+
+
+                <button
+                    id="spaceMode"
+                    class="mode-button">
+
+                    <span class="mode-icon">⌨</span>
+
+                    <div>
+                        <strong>TRANSMIT</strong>
+                        <small>Use Spacebar</small>
+                    </div>
+
+                </button>
+
+            </div>
+
+
+            <div class="challenge">
+
+                <div class="challenge-label">
+                    CURRENT CHALLENGE
+                </div>
+
+                <div
+                    id="targetWord"
+                    class="target-word">
+                    ???
+                </div>
+
+                <div
+                    id="challengeHint"
+                    class="challenge-hint">
+                    Listen carefully...
+                </div>
+
+            </div>
+
+
+            <div class="answer-area">
+
+                <label for="gameInput">
+                    YOUR ANSWER
+                </label>
+
+                <input
+                    id="gameInput"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="Type what you hear..."
+                >
+
+            </div>
+
+
+            <div class="game-buttons">
+
+                <button
+                    id="playMorse"
+                    class="button secondary">
+
+                    <span>▶</span>
+                    PLAY AGAIN
+
+                </button>
+
+                <button
+                    id="newWord"
+                    class="button primary">
+
+                    NEW CHALLENGE
+                    <span>→</span>
+
+                </button>
+
+            </div>
+
+
+            <div class="stats">
+
+                <div class="stat">
+
+                    <span class="stat-icon">★</span>
+
+                    <div>
+                        <small>SCORE</small>
+                        <strong id="score">0</strong>
+                    </div>
+
+                </div>
+
+
+                <div class="stat">
+
+                    <span class="stat-icon">↗</span>
+
+                    <div>
+                        <small>STREAK</small>
+                        <strong id="streak">0</strong>
+                    </div>
+
+                </div>
+
+
+                <div class="stat">
+
+                    <span class="stat-icon">#</span>
+
+                    <div>
+                        <small>PLAYED</small>
+                        <strong id="wordsPlayed">0</strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="speed">
+
+                <div class="speed-header">
+
+                    <span>MORSE SPEED</span>
+
+                    <strong id="speedText">
+                        MEDIUM
+                    </strong>
+
+                </div>
+
+                <input
+                    id="speed"
+                    type="range"
+                    min="1"
+                    max="3"
+                    value="2">
+
+                <div class="speed-labels">
+                    <span>SLOW</span>
+                    <span>MEDIUM</span>
+                    <span>FAST</span>
+                </div>
+
+            </div>
+
+
+            <div
+                id="gameMessage"
+                class="game-message">
+            </div>
+
+        </section>
+
+    </main>
+
+
+
+    <!-- =========================
+         REFERENCE
+    ========================== -->
+
+    <section class="reference-container">
+
+        <details>
+
+            <summary>
+
+                <div class="reference-title">
+
+                    <span class="panel-number">
+                        03
+                    </span>
+
+                    <div>
+                        <h2>Morse Reference</h2>
+                        <p>Letters and numbers</p>
+                    </div>
+
+                </div>
+
+                <span class="expand-icon">+</span>
+
+            </summary>
+
+
+            <div class="reference-content">
+
+                <div
+                    id="referenceGrid"
+                    class="reference-grid">
+                </div>
+
+            </div>
+
+        </details>
+
+    </section>
+
+
+    <footer>
+
+        <span>MORSE TRAINER</span>
+
+        <span>•</span>
+
+        <span>BUILT FOR PRACTICE</span>
+
+    </footer>
+
+
+    <script src="script.js"></script>
+
+</body>
+</html>
+```
