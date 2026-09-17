@@ -51,15 +51,17 @@ const MORSE = {
 
 const REVERSE_MORSE = {};
 
-Object.entries(MORSE).forEach(([letter, code]) => {
+Object.entries(MORSE).forEach(
+    ([letter, code]) => {
 
-    REVERSE_MORSE[code] = letter;
+        REVERSE_MORSE[code] = letter;
 
-});
+    }
+);
 
 
 /* =========================================
-   ELEMENTS
+   COMMUNICATOR ELEMENTS
 ========================================= */
 
 const morseEnabled =
@@ -76,6 +78,15 @@ const decodedOutput =
 
 const clearMorse =
     document.getElementById("clearMorse");
+
+const keyStatus =
+    document.getElementById("keyStatus");
+
+const currentSymbolDisplay =
+    document.getElementById("currentSymbol");
+
+const liveKeyDisplay =
+    document.querySelector(".live-key-display");
 
 
 /* =========================================
@@ -96,18 +107,241 @@ let wordTimer = null;
 
 
 /*
- * Timing settings.
+ * Timing controls.
+ *
+ * The tone itself begins immediately.
+ *
+ * Anything under 400ms is a dot.
+ * Anything 400ms or longer is a dash.
+ *
+ * This gives you considerably more
+ * room to transmit comfortably.
  */
 
-const DASH_THRESHOLD = 250;
+const DASH_THRESHOLD = 400;
 
-const LETTER_GAP = 600;
 
-const WORD_GAP = 1400;
+/*
+ * Wait this long after releasing
+ * Space before processing the letter.
+ *
+ * This is intentionally longer than
+ * the original version.
+ */
+
+const LETTER_GAP = 950;
+
+
+/*
+ * Wait this long without a new signal
+ * before creating a word space.
+ */
+
+const WORD_GAP = 1900;
+
+
+/*
+ * Morse tone frequency.
+ *
+ * Requested: 800Hz.
+ */
+
+const MORSE_FREQUENCY = 800;
+
+
+/*
+ * Volume.
+ */
+
+const MORSE_VOLUME = 0.16;
 
 
 /* =========================================
-   ENABLE MORSE
+   AUDIO ENGINE
+========================================= */
+
+let audioContext = null;
+
+let communicatorOscillator = null;
+
+let communicatorGain = null;
+
+
+/*
+ * Create the audio context only
+ * when the user interacts with the page.
+ */
+
+function getAudioContext() {
+
+    if (!audioContext) {
+
+        const AudioContext =
+            window.AudioContext ||
+            window.webkitAudioContext;
+
+        if (!AudioContext) {
+            return null;
+        }
+
+        audioContext =
+            new AudioContext();
+
+    }
+
+
+    if (
+        audioContext.state === "suspended"
+    ) {
+
+        audioContext.resume();
+
+    }
+
+
+    return audioContext;
+
+}
+
+
+/* =========================================
+   START LIVE TONE
+========================================= */
+
+function startCommunicatorTone() {
+
+    const audio =
+        getAudioContext();
+
+    if (!audio) {
+        return;
+    }
+
+
+    /*
+     * Prevent multiple oscillators
+     * from being created if the browser
+     * sends repeated key events.
+     */
+
+    if (communicatorOscillator) {
+        return;
+    }
+
+
+    communicatorOscillator =
+        audio.createOscillator();
+
+    communicatorGain =
+        audio.createGain();
+
+
+    communicatorOscillator.type =
+        "sine";
+
+
+    /*
+     * EXACTLY 800Hz.
+     */
+
+    communicatorOscillator.frequency.setValueAtTime(
+        MORSE_FREQUENCY,
+        audio.currentTime
+    );
+
+
+    communicatorGain.gain.setValueAtTime(
+        0.001,
+        audio.currentTime
+    );
+
+
+    /*
+     * Very quick fade-in so the tone
+     * starts immediately without a click.
+     */
+
+    communicatorGain.gain.exponentialRampToValueAtTime(
+        MORSE_VOLUME,
+        audio.currentTime + 0.008
+    );
+
+
+    communicatorOscillator.connect(
+        communicatorGain
+    );
+
+    communicatorGain.connect(
+        audio.destination
+    );
+
+
+    communicatorOscillator.start();
+
+}
+
+
+/* =========================================
+   STOP LIVE TONE
+========================================= */
+
+function stopCommunicatorTone() {
+
+    if (
+        !communicatorOscillator ||
+        !communicatorGain ||
+        !audioContext
+    ) {
+
+        return;
+
+    }
+
+
+    const oscillator =
+        communicatorOscillator;
+
+    const gain =
+        communicatorGain;
+
+
+    /*
+     * Small fade-out prevents an
+     * unpleasant click when released.
+     */
+
+    gain.gain.cancelScheduledValues(
+        audioContext.currentTime
+    );
+
+    gain.gain.setValueAtTime(
+        Math.max(
+            gain.gain.value,
+            0.001
+        ),
+        audioContext.currentTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audioContext.currentTime + 0.015
+    );
+
+
+    oscillator.stop(
+        audioContext.currentTime + 0.02
+    );
+
+
+    communicatorOscillator = null;
+
+    communicatorGain = null;
+
+}
+
+
+/* =========================================
+   ENABLE / DISABLE MORSE
 ========================================= */
 
 morseEnabled.addEventListener(
@@ -120,7 +354,7 @@ morseEnabled.addEventListener(
                 "ACTIVE";
 
             morseStatus.style.color =
-                "#3cff91";
+                "#39ff88";
 
         } else {
 
@@ -129,6 +363,25 @@ morseEnabled.addEventListener(
 
             morseStatus.style.color =
                 "";
+
+            /*
+             * Make absolutely sure a tone
+             * cannot remain stuck on.
+             */
+
+            stopCommunicatorTone();
+
+            spacePressed = false;
+
+            keyStatus.textContent =
+                "RELEASED";
+
+            currentSymbolDisplay.textContent =
+                "—";
+
+            liveKeyDisplay.classList.remove(
+                "active"
+            );
 
         }
 
@@ -145,8 +398,7 @@ document.addEventListener(
     event => {
 
         /*
-         * Don't trigger repeatedly
-         * when the key is held.
+         * Morse communicator.
          */
 
         if (
@@ -155,16 +407,44 @@ document.addEventListener(
             !spacePressed
         ) {
 
-            /*
-             * Don't allow the browser
-             * to scroll.
-             */
-
             event.preventDefault();
 
             spacePressed = true;
 
-            spaceStartTime = Date.now();
+            spaceStartTime =
+                performance.now();
+
+
+            /*
+             * START THE SOUND IMMEDIATELY.
+             */
+
+            startCommunicatorTone();
+
+
+            /*
+             * Update visual status.
+             */
+
+            keyStatus.textContent =
+                "PRESSED";
+
+            currentSymbolDisplay.textContent =
+                "●";
+
+            liveKeyDisplay.classList.add(
+                "active"
+            );
+
+
+            /*
+             * Cancel any pending
+             * letter processing.
+             */
+
+            clearTimeout(letterTimer);
+
+            clearTimeout(wordTimer);
 
         }
 
@@ -188,33 +468,61 @@ document.addEventListener(
 
             event.preventDefault();
 
+
+            /*
+             * Stop the tone immediately.
+             */
+
+            stopCommunicatorTone();
+
+
             spacePressed = false;
 
+
             const duration =
-                Date.now() - spaceStartTime;
+                performance.now() -
+                spaceStartTime;
 
 
             /*
-             * Determine dot or dash.
+             * Decide dot or dash.
              */
 
-            if (duration < DASH_THRESHOLD) {
+            if (
+                duration <
+                DASH_THRESHOLD
+            ) {
 
                 currentLetter += ".";
+
+                currentSymbolDisplay.textContent =
+                    ".";
 
             } else {
 
                 currentLetter += "-";
 
+                currentSymbolDisplay.textContent =
+                    "—";
+
             }
+
+
+            keyStatus.textContent =
+                "RELEASED";
+
+            liveKeyDisplay.classList.remove(
+                "active"
+            );
 
 
             updateCommunicator();
 
 
             /*
-             * Finish the letter after
-             * a short pause.
+             * Give the user almost a full
+             * second to continue transmitting
+             * the same letter.
              */
 
             clearTimeout(letterTimer);
@@ -226,8 +534,8 @@ document.addEventListener(
 
 
             /*
-             * Finish the word after
-             * a longer pause.
+             * Longer inactivity creates
+             * a word break.
              */
 
             clearTimeout(wordTimer);
@@ -277,8 +585,7 @@ function finishLetter() {
 
 
     /*
-     * If this is the first character,
-     * replace the placeholder.
+     * Remove placeholder text.
      */
 
     if (
@@ -288,6 +595,10 @@ function finishLetter() {
 
         decodedOutput.textContent = "";
 
+        decodedOutput.classList.remove(
+            "placeholder"
+        );
+
     }
 
 
@@ -296,6 +607,10 @@ function finishLetter() {
 
 
     currentLetter = "";
+
+    currentSymbolDisplay.textContent =
+        "—";
+
 
     updateCommunicator();
 
@@ -307,6 +622,10 @@ function finishLetter() {
 ========================================= */
 
 function finishWord() {
+
+    /*
+     * Process any remaining letter first.
+     */
 
     finishLetter();
 
@@ -328,7 +647,7 @@ function finishWord() {
 
 
 /* =========================================
-   CLEAR
+   CLEAR COMMUNICATOR
 ========================================= */
 
 clearMorse.addEventListener(
@@ -339,8 +658,30 @@ clearMorse.addEventListener(
 
         currentLetter = "";
 
+        clearTimeout(letterTimer);
+
+        clearTimeout(wordTimer);
+
+        stopCommunicatorTone();
+
+        spacePressed = false;
+
         decodedOutput.textContent =
             "Waiting for transmission...";
+
+        decodedOutput.classList.add(
+            "placeholder"
+        );
+
+        keyStatus.textContent =
+            "RELEASED";
+
+        currentSymbolDisplay.textContent =
+            "—";
+
+        liveKeyDisplay.classList.remove(
+            "active"
+        );
 
         updateCommunicator();
 
@@ -349,7 +690,7 @@ clearMorse.addEventListener(
 
 
 /* =========================================
-   GAME DATA
+   GAME WORDS
 ========================================= */
 
 const WORDS = [
@@ -462,9 +803,13 @@ let gameSpaceStart = 0;
 
 let gameLetterTimer = null;
 
+let gameOscillator = null;
+
+let gameGain = null;
+
 
 /* =========================================
-   MODE SWITCHING
+   GAME MODE SWITCHING
 ========================================= */
 
 listenMode.addEventListener(
@@ -473,9 +818,13 @@ listenMode.addEventListener(
 
         gameMode = "listen";
 
-        listenMode.classList.add("active");
+        listenMode.classList.add(
+            "active"
+        );
 
-        spaceMode.classList.remove("active");
+        spaceMode.classList.remove(
+            "active"
+        );
 
         gameInput.placeholder =
             "Type what you hear...";
@@ -495,9 +844,13 @@ spaceMode.addEventListener(
 
         gameMode = "space";
 
-        spaceMode.classList.add("active");
+        spaceMode.classList.add(
+            "active"
+        );
 
-        listenMode.classList.remove("active");
+        listenMode.classList.remove(
+            "active"
+        );
 
         gameInput.placeholder =
             "Transmit using Spacebar...";
@@ -512,12 +865,13 @@ spaceMode.addEventListener(
 
 
 /* =========================================
-   NEW WORD
+   NEW GAME WORD
 ========================================= */
 
 function newGameWord() {
 
     let newWordValue;
+
 
     do {
 
@@ -535,11 +889,16 @@ function newGameWord() {
     );
 
 
-    currentWord = newWordValue;
+    currentWord =
+        newWordValue;
+
 
     gameInput.value = "";
 
     gameLetter = "";
+
+    clearTimeout(gameLetterTimer);
+
 
     gameMessage.textContent = "";
 
@@ -549,7 +908,13 @@ function newGameWord() {
 
     if (gameMode === "listen") {
 
-        targetWord.textContent = "???";
+        targetWord.textContent =
+            "???";
+
+
+        challengeHint.textContent =
+            "Listen carefully...";
+
 
         setTimeout(
             () => playWord(currentWord),
@@ -561,13 +926,16 @@ function newGameWord() {
         targetWord.textContent =
             currentWord;
 
+        challengeHint.textContent =
+            "Use Spacebar to transmit the word.";
+
     }
 
 }
 
 
 /* =========================================
-   LISTEN GAME
+   LISTEN MODE INPUT
 ========================================= */
 
 gameInput.addEventListener(
@@ -598,11 +966,14 @@ gameInput.addEventListener(
         wordsPlayed++;
 
 
-        if (answer === currentWord) {
+        if (
+            answer === currentWord
+        ) {
 
             score++;
 
             streak++;
+
 
             showGameMessage(
                 "CORRECT",
@@ -612,6 +983,7 @@ gameInput.addEventListener(
         } else {
 
             streak = 0;
+
 
             showGameMessage(
                 `INCORRECT — ${currentWord}`,
@@ -634,7 +1006,7 @@ gameInput.addEventListener(
 
 
 /* =========================================
-   SPACEBAR GAME
+   GAME SPACEBAR DOWN
 ========================================= */
 
 document.addEventListener(
@@ -643,7 +1015,9 @@ document.addEventListener(
 
         if (
             gameMode !== "space" ||
-            !spaceMode.classList.contains("active")
+            !spaceMode.classList.contains(
+                "active"
+            )
         ) {
 
             return;
@@ -660,13 +1034,29 @@ document.addEventListener(
 
             gameSpacePressed = true;
 
-            gameSpaceStart = Date.now();
+            gameSpaceStart =
+                performance.now();
+
+
+            /*
+             * Start game tone immediately.
+             */
+
+            startGameTone();
+
+
+            challengeHint.textContent =
+                "Transmitting...";
 
         }
 
     }
 );
 
+
+/* =========================================
+   GAME SPACEBAR UP
+========================================= */
 
 document.addEventListener(
     "keyup",
@@ -685,14 +1075,22 @@ document.addEventListener(
 
         event.preventDefault();
 
+
+        stopGameTone();
+
+
         gameSpacePressed = false;
 
 
         const duration =
-            Date.now() - gameSpaceStart;
+            performance.now() -
+            gameSpaceStart;
 
 
-        if (duration < DASH_THRESHOLD) {
+        if (
+            duration <
+            DASH_THRESHOLD
+        ) {
 
             gameLetter += ".";
 
@@ -706,10 +1104,11 @@ document.addEventListener(
         clearTimeout(gameLetterTimer);
 
 
-        gameLetterTimer = setTimeout(
-            finishGameLetter,
-            LETTER_GAP
-        );
+        gameLetterTimer =
+            setTimeout(
+                finishGameLetter,
+                LETTER_GAP
+            );
 
 
         challengeHint.textContent =
@@ -734,7 +1133,9 @@ function finishGameLetter() {
         REVERSE_MORSE[gameLetter] || "?";
 
 
-    gameInput.value += decoded;
+    gameInput.value +=
+        decoded;
+
 
     gameLetter = "";
 
@@ -744,8 +1145,8 @@ function finishGameLetter() {
 
 
     /*
-     * Check if enough letters
-     * have been transmitted.
+     * Check if the entire answer
+     * has been transmitted.
      */
 
     if (
@@ -762,11 +1163,14 @@ function finishGameLetter() {
         wordsPlayed++;
 
 
-        if (answer === currentWord) {
+        if (
+            answer === currentWord
+        ) {
 
             score++;
 
             streak++;
+
 
             showGameMessage(
                 "CORRECT",
@@ -776,6 +1180,7 @@ function finishGameLetter() {
         } else {
 
             streak = 0;
+
 
             showGameMessage(
                 `INCORRECT — ${currentWord}`,
@@ -799,6 +1204,128 @@ function finishGameLetter() {
 
 
 /* =========================================
+   GAME AUDIO START
+========================================= */
+
+function startGameTone() {
+
+    const audio =
+        getAudioContext();
+
+    if (!audio) {
+        return;
+    }
+
+
+    if (gameOscillator) {
+        return;
+    }
+
+
+    gameOscillator =
+        audio.createOscillator();
+
+    gameGain =
+        audio.createGain();
+
+
+    gameOscillator.type =
+        "sine";
+
+
+    /*
+     * Game tone is ALSO exactly 800Hz.
+     */
+
+    gameOscillator.frequency.setValueAtTime(
+        MORSE_FREQUENCY,
+        audio.currentTime
+    );
+
+
+    gameGain.gain.setValueAtTime(
+        0.001,
+        audio.currentTime
+    );
+
+
+    gameGain.gain.exponentialRampToValueAtTime(
+        MORSE_VOLUME,
+        audio.currentTime + 0.008
+    );
+
+
+    gameOscillator.connect(
+        gameGain
+    );
+
+    gameGain.connect(
+        audio.destination
+    );
+
+
+    gameOscillator.start();
+
+}
+
+
+/* =========================================
+   GAME AUDIO STOP
+========================================= */
+
+function stopGameTone() {
+
+    if (
+        !gameOscillator ||
+        !gameGain ||
+        !audioContext
+    ) {
+
+        return;
+
+    }
+
+
+    const oscillator =
+        gameOscillator;
+
+    const gain =
+        gameGain;
+
+
+    gain.gain.cancelScheduledValues(
+        audioContext.currentTime
+    );
+
+
+    gain.gain.setValueAtTime(
+        Math.max(
+            gain.gain.value,
+            0.001
+        ),
+        audioContext.currentTime
+    );
+
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audioContext.currentTime + 0.015
+    );
+
+
+    oscillator.stop(
+        audioContext.currentTime + 0.02
+    );
+
+
+    gameOscillator = null;
+
+    gameGain = null;
+
+}
+
+
+/* =========================================
    GAME MESSAGE
 ========================================= */
 
@@ -810,6 +1337,7 @@ function showGameMessage(
     gameMessage.textContent =
         message;
 
+
     gameMessage.className =
         correct
             ? "game-message correct"
@@ -819,7 +1347,7 @@ function showGameMessage(
 
 
 /* =========================================
-   UPDATE STATS
+   UPDATE GAME STATS
 ========================================= */
 
 function updateStats() {
@@ -837,7 +1365,7 @@ function updateStats() {
 
 
 /* =========================================
-   AUDIO
+   MORSE AUDIO PLAYBACK
 ========================================= */
 
 function playWord(word) {
@@ -864,21 +1392,27 @@ function playWord(word) {
                 symbol => {
 
                     setTimeout(
-                        () => playTone(
-                            timing.frequency,
-                            timing.toneLength
-                        ),
+                        () => {
+
+                            playTone(
+                                MORSE_FREQUENCY,
+                                timing.toneLength
+                            );
+
+                        },
                         delay
                     );
 
 
                     if (symbol === ".") {
 
-                        delay += timing.dot;
+                        delay +=
+                            timing.dot;
 
                     } else {
 
-                        delay += timing.dash;
+                        delay +=
+                            timing.dash;
 
                     }
 
@@ -900,7 +1434,7 @@ function playWord(word) {
 
 
 /* =========================================
-   AUDIO TONE
+   PLAY SINGLE TONE
 ========================================= */
 
 function playTone(
@@ -908,23 +1442,16 @@ function playTone(
     duration
 ) {
 
-    const AudioContext =
-        window.AudioContext ||
-        window.webkitAudioContext;
+    const audio =
+        getAudioContext();
 
-
-    if (!AudioContext) {
+    if (!audio) {
         return;
     }
 
 
-    const audio =
-        new AudioContext();
-
-
     const oscillator =
         audio.createOscillator();
-
 
     const gain =
         audio.createGain();
@@ -934,13 +1461,17 @@ function playTone(
         "sine";
 
 
-    oscillator.frequency.value =
-        frequency;
+    oscillator.frequency.setValueAtTime(
+        frequency,
+        audio.currentTime
+    );
 
 
     oscillator.connect(gain);
 
-    gain.connect(audio.destination);
+    gain.connect(
+        audio.destination
+    );
 
 
     gain.gain.setValueAtTime(
@@ -950,8 +1481,8 @@ function playTone(
 
 
     gain.gain.exponentialRampToValueAtTime(
-        0.15,
-        audio.currentTime + 0.01
+        MORSE_VOLUME,
+        audio.currentTime + 0.008
     );
 
 
@@ -971,12 +1502,6 @@ function playTone(
         0.02
     );
 
-
-    setTimeout(
-        () => audio.close(),
-        duration + 100
-    );
-
 }
 
 
@@ -986,20 +1511,26 @@ function playTone(
 
 function getTiming() {
 
+    /*
+     * These control the playback speed
+     * of the listening game.
+     *
+     * All playback is still 800Hz.
+     */
+
     if (speed.value === "1") {
 
         return {
 
             dot: 240,
+
             dash: 720,
 
             symbolGap: 170,
 
             letterGap: 550,
 
-            toneLength: 180,
-
-            frequency: 600
+            toneLength: 180
 
         };
 
@@ -1011,15 +1542,14 @@ function getTiming() {
         return {
 
             dot: 90,
+
             dash: 270,
 
             symbolGap: 65,
 
             letterGap: 260,
 
-            toneLength: 70,
-
-            frequency: 650
+            toneLength: 70
 
         };
 
@@ -1029,20 +1559,23 @@ function getTiming() {
     return {
 
         dot: 150,
+
         dash: 450,
 
         symbolGap: 100,
 
         letterGap: 400,
 
-        toneLength: 110,
-
-        frequency: 625
+        toneLength: 110
 
     };
 
 }
 
+
+/* =========================================
+   SPEED SLIDER
+========================================= */
 
 speed.addEventListener(
     "input",
@@ -1146,7 +1679,10 @@ function escapeHtml(text) {
    INITIALIZE
 ========================================= */
 
+decodedOutput.classList.add(
+    "placeholder"
+);
+
 updateCommunicator();
 
 newGameWord();
-
