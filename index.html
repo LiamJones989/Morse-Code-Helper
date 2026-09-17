@@ -12,6 +12,7 @@
 <body>
 
     <div class="background-grid"></div>
+    <div class="scanline"></div>
 
     <header class="site-header">
 
@@ -35,25 +36,32 @@
     <main>
 
         <!-- =========================
-             COMMUNICATOR
+             MORSE COMMUNICATOR
         ========================== -->
 
         <section class="panel communicator-panel">
 
             <div class="panel-header">
 
-                <div>
+                <div class="panel-heading">
+
                     <span class="panel-number">01</span>
 
                     <div>
                         <h2>Morse Communicator</h2>
                         <p>Transmit Morse using your keyboard.</p>
                     </div>
+
                 </div>
 
                 <label class="switch">
-                    <input type="checkbox" id="morseEnabled">
+
+                    <input
+                        type="checkbox"
+                        id="morseEnabled">
+
                     <span class="slider"></span>
+
                 </label>
 
             </div>
@@ -81,10 +89,31 @@
                         MORSE OUTPUT
                     </div>
 
-                    <div id="morseOutput" class="morse-output">
+                    <div
+                        id="morseOutput"
+                        class="morse-output">
+
                         <span class="cursor">_</span>
+
                     </div>
 
+                </div>
+
+            </div>
+
+
+            <div class="live-key-display">
+
+                <div class="live-key-indicator"></div>
+
+                <div>
+                    <span>KEY STATUS</span>
+                    <strong id="keyStatus">RELEASED</strong>
+                </div>
+
+                <div class="current-symbol">
+                    <span>CURRENT</span>
+                    <strong id="currentSymbol">—</strong>
                 </div>
 
             </div>
@@ -96,8 +125,12 @@
                     DECODED MESSAGE
                 </div>
 
-                <div id="decodedOutput" class="decoded-output">
+                <div
+                    id="decodedOutput"
+                    class="decoded-output">
+
                     Waiting for transmission...
+
                 </div>
 
             </div>
@@ -108,8 +141,11 @@
                 <button
                     id="clearMorse"
                     class="button secondary">
+
                     CLEAR
+
                 </button>
+
 
                 <div class="key-instruction">
 
@@ -118,13 +154,13 @@
                     </div>
 
                     <div>
-                        <strong>Short press</strong>
-                        <span>DOT</span>
+                        <strong>PRESS</strong>
+                        <span>START TONE</span>
                     </div>
 
                     <div>
-                        <strong>Long press</strong>
-                        <span>DASH</span>
+                        <strong>RELEASE</strong>
+                        <span>FINISH SIGNAL</span>
                     </div>
 
                 </div>
@@ -137,15 +173,16 @@
                 <div class="help-icon">i</div>
 
                 <div>
+
                     <strong>How to transmit</strong>
 
                     <p>
-                        Enable Morse input, then use
+                        Enable Morse input, then press and hold
                         <b>Spacebar</b>.
-                        A quick tap creates a dot
-                        <code>.</code>
-                        while holding the key creates a dash
-                        <code>-</code>.
+                        The tone begins immediately and stays on
+                        while you hold the key. Short holds create
+                        dots and longer holds create dashes.
+                        Pause briefly between letters.
                     </p>
 
                 </div>
@@ -157,20 +194,22 @@
 
 
         <!-- =========================
-             GAME
+             MORSE GAME
         ========================== -->
 
         <section class="panel game-panel">
 
             <div class="panel-header">
 
-                <div>
+                <div class="panel-heading">
+
                     <span class="panel-number">02</span>
 
                     <div>
                         <h2>Morse Challenge</h2>
                         <p>Test your ability to read and transmit.</p>
                     </div>
+
                 </div>
 
                 <div class="game-live">
@@ -222,13 +261,17 @@
                 <div
                     id="targetWord"
                     class="target-word">
+
                     ???
+
                 </div>
 
                 <div
                     id="challengeHint"
                     class="challenge-hint">
+
                     Listen carefully...
+
                 </div>
 
             </div>
@@ -334,9 +377,11 @@
                     value="2">
 
                 <div class="speed-labels">
+
                     <span>SLOW</span>
                     <span>MEDIUM</span>
                     <span>FAST</span>
+
                 </div>
 
             </div>
@@ -345,6 +390,7 @@
             <div
                 id="gameMessage"
                 class="game-message">
+
             </div>
 
         </section>
@@ -354,7 +400,7 @@
 
 
     <!-- =========================
-         REFERENCE
+         MORSE REFERENCE
     ========================== -->
 
     <section class="reference-container">
@@ -386,6 +432,7 @@
                 <div
                     id="referenceGrid"
                     class="reference-grid">
+
                 </div>
 
             </div>
@@ -398,9 +445,7 @@
     <footer>
 
         <span>MORSE TRAINER</span>
-
         <span>•</span>
-
         <span>BUILT FOR PRACTICE</span>
 
     </footer>
